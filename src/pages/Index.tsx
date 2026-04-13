@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
 type AuthScreen = "welcome" | "login" | "register" | "verify";
@@ -80,6 +80,10 @@ export default function Index() {
   const [authError, setAuthError] = useState("");
   const [showPass, setShowPass] = useState(false);
 
+  // Smooth navigation
+  const [tabVisible, setTabVisible] = useState(true);
+  const switchingRef = useRef(false);
+
   const navItems: { id: Tab; icon: string; label: string; badge?: number }[] = [
     { id: "chats", icon: "MessageCircle", label: "Чаты", badge: CHATS.reduce((a, c) => a + c.unread, 0) },
     { id: "groups", icon: "Users", label: "Группы", badge: GROUPS.reduce((a, g) => a + g.unread, 0) },
@@ -96,6 +100,34 @@ export default function Index() {
     ...GROUPS.map(g => ({ ...g, type: "group" })),
     ...CONTACTS.map(c => ({ ...c, type: "contact" })),
   ].filter(i => searchQuery && i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const switchTab = (newTab: Tab) => {
+    if (newTab === activeTab || switchingRef.current) return;
+    switchingRef.current = true;
+    setTabVisible(false);
+    setTimeout(() => {
+      setActiveTab(newTab);
+      setOpenChat(null);
+      switchingRef.current = false;
+      setTabVisible(true);
+    }, 180);
+  };
+
+  const openChatAnimated = (chat: typeof CHATS[0]) => {
+    setTabVisible(false);
+    setTimeout(() => {
+      setOpenChat(chat);
+      setTabVisible(true);
+    }, 150);
+  };
+
+  const closeChatAnimated = () => {
+    setTabVisible(false);
+    setTimeout(() => {
+      setOpenChat(null);
+      setTabVisible(true);
+    }, 150);
+  };
 
   const handleLogin = () => {
     if (!authForm.phone || !authForm.password) { setAuthError("Заполни все поля"); return; }
@@ -392,7 +424,7 @@ export default function Index() {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => { setActiveTab(item.id); setOpenChat(null); }}
+            onClick={() => switchTab(item.id)}
             className={`relative w-14 h-14 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group
               ${activeTab === item.id ? "nav-item-active glow-purple" : "hover:bg-white/5"}`}
           >
@@ -414,7 +446,14 @@ export default function Index() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden">
+      <main
+        className="flex-1 flex overflow-hidden transition-all duration-180"
+        style={{
+          opacity: tabVisible ? 1 : 0,
+          transform: tabVisible ? "translateX(0)" : "translateX(10px)",
+          transition: "opacity 0.18s ease, transform 0.18s ease",
+        }}
+      >
 
         {/* ===== CHATS LIST ===== */}
         {activeTab === "chats" && !openChat && (
@@ -438,7 +477,7 @@ export default function Index() {
               {CHATS.map((chat, i) => (
                 <button
                   key={chat.id}
-                  onClick={() => setOpenChat(chat)}
+                  onClick={() => openChatAnimated(chat)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/4 transition-all border-b border-white/3 text-left"
                   style={{ animationDelay: `${i * 50}ms` }}
                 >
@@ -489,7 +528,7 @@ export default function Index() {
         {activeTab === "chats" && openChat && (
           <div className="flex flex-col w-full animate-fade-in">
             <div className="flex items-center gap-3 px-4 py-3 glass border-b border-white/5">
-              <button onClick={() => setOpenChat(null)} className="text-white/40 hover:text-white/80 transition-colors">
+              <button onClick={closeChatAnimated} className="text-white/40 hover:text-white/80 transition-colors">
                 <Icon name="ArrowLeft" size={20} />
               </button>
               <div className="relative">
