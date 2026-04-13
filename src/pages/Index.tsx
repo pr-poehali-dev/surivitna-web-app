@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
+type AuthScreen = "welcome" | "login" | "register" | "verify";
 type Tab = "chats" | "groups" | "contacts" | "media" | "notifications" | "search" | "profile" | "settings";
 
 const CHATS = [
@@ -72,6 +73,13 @@ export default function Index() {
   const [encryptEnabled, setEncryptEnabled] = useState(true);
   const [notifEnabled, setNotifEnabled] = useState(true);
 
+  // Auth state
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("welcome");
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [authForm, setAuthForm] = useState({ name: "", username: "", phone: "", password: "", code: "" });
+  const [authError, setAuthError] = useState("");
+  const [showPass, setShowPass] = useState(false);
+
   const navItems: { id: Tab; icon: string; label: string; badge?: number }[] = [
     { id: "chats", icon: "MessageCircle", label: "Чаты", badge: CHATS.reduce((a, c) => a + c.unread, 0) },
     { id: "groups", icon: "Users", label: "Группы", badge: GROUPS.reduce((a, g) => a + g.unread, 0) },
@@ -88,6 +96,287 @@ export default function Index() {
     ...GROUPS.map(g => ({ ...g, type: "group" })),
     ...CONTACTS.map(c => ({ ...c, type: "contact" })),
   ].filter(i => searchQuery && i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const handleLogin = () => {
+    if (!authForm.phone || !authForm.password) { setAuthError("Заполни все поля"); return; }
+    setAuthError("");
+    setIsAuthed(true);
+  };
+
+  const handleRegister = () => {
+    if (!authForm.name || !authForm.phone || !authForm.password) { setAuthError("Заполни все поля"); return; }
+    setAuthError("");
+    setAuthScreen("verify");
+  };
+
+  const handleVerify = () => {
+    if (authForm.code.length < 4) { setAuthError("Введи код из SMS"); return; }
+    setAuthError("");
+    setIsAuthed(true);
+  };
+
+  if (!isAuthed) return (
+    <div className="h-screen w-screen flex bg-mesh overflow-hidden font-golos">
+      {/* Floating orbs */}
+      <div className="absolute top-[-10%] left-[-5%] w-96 h-96 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm animate-fade-in">
+
+          {/* Welcome */}
+          {authScreen === "welcome" && (
+            <div className="flex flex-col items-center text-center gap-6">
+              <div className="relative animate-float">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center glow-purple">
+                  <span className="text-white font-montserrat font-black text-4xl">S</span>
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
+                  <Icon name="Lock" size={14} className="text-white" />
+                </div>
+              </div>
+
+              <div>
+                <h1 className="text-4xl font-black font-montserrat gradient-text mb-2">Surivitna</h1>
+                <p className="text-white/50 text-sm leading-relaxed">Защищённый мессенджер с шифрованием<br/>E2E для всех твоих переписок</p>
+              </div>
+
+              <div className="flex flex-col gap-3 w-full mt-2">
+                {[
+                  { icon: "Lock", color: "text-green-400", bg: "bg-green-500/10", text: "Сквозное шифрование E2E" },
+                  { icon: "Clock", color: "text-orange-400", bg: "bg-orange-500/10", text: "Авто-удаление сообщений" },
+                  { icon: "Smile", color: "text-yellow-400", bg: "bg-yellow-500/10", text: "Стикеры и статусы" },
+                ].map(f => (
+                  <div key={f.text} className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${f.bg} border border-white/5`}>
+                    <Icon name={f.icon} size={16} className={f.color} />
+                    <span className="text-sm text-white/70">{f.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 w-full mt-2">
+                <button
+                  onClick={() => setAuthScreen("register")}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-bold text-base glow-purple hover:scale-[1.02] transition-transform"
+                >
+                  Создать аккаунт
+                </button>
+                <button
+                  onClick={() => setAuthScreen("login")}
+                  className="w-full py-4 rounded-2xl glass border border-white/10 text-white/70 font-medium text-base hover:bg-white/5 transition-all"
+                >
+                  Уже есть аккаунт
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Login */}
+          {authScreen === "login" && (
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-3 mb-2">
+                <button onClick={() => setAuthScreen("welcome")} className="w-9 h-9 rounded-xl glass flex items-center justify-center text-white/50 hover:text-white/80 transition-colors">
+                  <Icon name="ArrowLeft" size={18} />
+                </button>
+                <div>
+                  <h2 className="text-2xl font-black font-montserrat text-white">Вход</h2>
+                  <p className="text-xs text-white/40">Введи данные аккаунта</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3 border border-white/8 focus-within:border-purple-500/50 transition-colors">
+                  <Icon name="Phone" size={16} className="text-white/30 shrink-0" />
+                  <input
+                    type="tel"
+                    placeholder="+7 (999) 000-00-00"
+                    value={authForm.phone}
+                    onChange={e => setAuthForm(p => ({ ...p, phone: e.target.value }))}
+                    className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
+                  />
+                </div>
+                <div className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3 border border-white/8 focus-within:border-purple-500/50 transition-colors">
+                  <Icon name="KeyRound" size={16} className="text-white/30 shrink-0" />
+                  <input
+                    type={showPass ? "text" : "password"}
+                    placeholder="Пароль"
+                    value={authForm.password}
+                    onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))}
+                    className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
+                  />
+                  <button onClick={() => setShowPass(!showPass)} className="text-white/30 hover:text-white/60 transition-colors">
+                    <Icon name={showPass ? "EyeOff" : "Eye"} size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {authError && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-scale-in">
+                  <Icon name="AlertCircle" size={14} className="text-red-400" />
+                  <span className="text-xs text-red-300">{authError}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleLogin}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-base glow-purple hover:scale-[1.02] transition-transform"
+              >
+                Войти
+              </button>
+
+              <button onClick={() => setAuthScreen("register")} className="text-center text-xs text-white/30 hover:text-purple-400 transition-colors">
+                Нет аккаунта? <span className="text-purple-400">Зарегистрироваться</span>
+              </button>
+            </div>
+          )}
+
+          {/* Register */}
+          {authScreen === "register" && (
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-3 mb-2">
+                <button onClick={() => setAuthScreen("welcome")} className="w-9 h-9 rounded-xl glass flex items-center justify-center text-white/50 hover:text-white/80 transition-colors">
+                  <Icon name="ArrowLeft" size={18} />
+                </button>
+                <div>
+                  <h2 className="text-2xl font-black font-montserrat text-white">Регистрация</h2>
+                  <p className="text-xs text-white/40">Создай новый аккаунт</p>
+                </div>
+              </div>
+
+              {/* Progress */}
+              <div className="flex gap-1.5">
+                {[0,1,2].map(i => (
+                  <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i === 0 ? "bg-gradient-to-r from-purple-500 to-cyan-500" : "bg-white/10"}`} />
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3 border border-white/8 focus-within:border-purple-500/50 transition-colors">
+                  <Icon name="User" size={16} className="text-white/30 shrink-0" />
+                  <input
+                    placeholder="Имя и фамилия"
+                    value={authForm.name}
+                    onChange={e => setAuthForm(p => ({ ...p, name: e.target.value }))}
+                    className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
+                  />
+                </div>
+                <div className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3 border border-white/8 focus-within:border-purple-500/50 transition-colors">
+                  <span className="text-white/30 text-sm shrink-0">@</span>
+                  <input
+                    placeholder="Имя пользователя"
+                    value={authForm.username}
+                    onChange={e => setAuthForm(p => ({ ...p, username: e.target.value.replace(/\s/g,"") }))}
+                    className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
+                  />
+                </div>
+                <div className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3 border border-white/8 focus-within:border-purple-500/50 transition-colors">
+                  <Icon name="Phone" size={16} className="text-white/30 shrink-0" />
+                  <input
+                    type="tel"
+                    placeholder="+7 (999) 000-00-00"
+                    value={authForm.phone}
+                    onChange={e => setAuthForm(p => ({ ...p, phone: e.target.value }))}
+                    className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
+                  />
+                </div>
+                <div className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3 border border-white/8 focus-within:border-purple-500/50 transition-colors">
+                  <Icon name="KeyRound" size={16} className="text-white/30 shrink-0" />
+                  <input
+                    type={showPass ? "text" : "password"}
+                    placeholder="Придумай пароль"
+                    value={authForm.password}
+                    onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))}
+                    className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
+                  />
+                  <button onClick={() => setShowPass(!showPass)} className="text-white/30 hover:text-white/60 transition-colors">
+                    <Icon name={showPass ? "EyeOff" : "Eye"} size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {authError && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-scale-in">
+                  <Icon name="AlertCircle" size={14} className="text-red-400" />
+                  <span className="text-xs text-red-300">{authError}</span>
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 px-1">
+                <Icon name="Shield" size={13} className="text-green-400 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-white/30 leading-relaxed">Регистрируясь, ты соглашаешься с условиями использования. Твои данные защищены E2E-шифрованием.</p>
+              </div>
+
+              <button
+                onClick={handleRegister}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-bold text-base glow-purple hover:scale-[1.02] transition-transform"
+              >
+                Продолжить →
+              </button>
+
+              <button onClick={() => setAuthScreen("login")} className="text-center text-xs text-white/30 hover:text-purple-400 transition-colors">
+                Уже есть аккаунт? <span className="text-purple-400">Войти</span>
+              </button>
+            </div>
+          )}
+
+          {/* Verify phone */}
+          {authScreen === "verify" && (
+            <div className="flex flex-col gap-5 items-center text-center">
+              <button onClick={() => setAuthScreen("register")} className="self-start w-9 h-9 rounded-xl glass flex items-center justify-center text-white/50 hover:text-white/80 transition-colors">
+                <Icon name="ArrowLeft" size={18} />
+              </button>
+
+              {/* Progress */}
+              <div className="flex gap-1.5 w-full">
+                {[0,1,2].map(i => (
+                  <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= 1 ? "bg-gradient-to-r from-purple-500 to-cyan-500" : "bg-white/10"}`} />
+                ))}
+              </div>
+
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-cyan-500/20 animate-float">
+                <Icon name="MessageSquare" size={32} className="text-cyan-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black font-montserrat text-white mb-1">Подтверди номер</h2>
+                <p className="text-sm text-white/40">Отправили SMS на<br/><span className="text-purple-300">{authForm.phone || "+7 (999) ..."}</span></p>
+              </div>
+
+              {/* Code input */}
+              <div className="glass rounded-2xl px-6 py-4 flex items-center gap-3 border border-purple-500/20 w-full focus-within:border-purple-500/50 transition-colors">
+                <Icon name="Hash" size={16} className="text-purple-400 shrink-0" />
+                <input
+                  placeholder="Код из SMS"
+                  value={authForm.code}
+                  onChange={e => setAuthForm(p => ({ ...p, code: e.target.value.replace(/\D/g,"").slice(0,6) }))}
+                  className="bg-transparent text-lg text-white placeholder-white/25 outline-none flex-1 tracking-widest font-bold text-center"
+                  maxLength={6}
+                />
+              </div>
+
+              {authError && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-scale-in w-full">
+                  <Icon name="AlertCircle" size={14} className="text-red-400" />
+                  <span className="text-xs text-red-300">{authError}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleVerify}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold text-base glow-cyan hover:scale-[1.02] transition-transform"
+              >
+                Подтвердить и войти 🚀
+              </button>
+
+              <button className="text-xs text-white/25 hover:text-purple-400 transition-colors">
+                Отправить код повторно через 60с
+              </button>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen w-screen flex bg-mesh overflow-hidden font-golos">
@@ -641,7 +930,10 @@ export default function Index() {
                 </div>
               </div>
 
-              <button className="glass rounded-2xl p-4 flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-all">
+              <button
+                onClick={() => { setIsAuthed(false); setAuthScreen("welcome"); setAuthForm({ name: "", username: "", phone: "", password: "", code: "" }); }}
+                className="glass rounded-2xl p-4 flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-all"
+              >
                 <Icon name="LogOut" size={18} />
                 <span className="text-sm font-medium">Выйти из аккаунта</span>
               </button>
